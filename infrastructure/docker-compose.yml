@@ -1,0 +1,199 @@
+version: "3.8"
+
+services:
+  # Nginx Reverse Proxy (Only service exposed to external)
+  nginx:
+    image: nginx:alpine
+    container_name: web-nginx
+    ports:
+      - "${NGINX_PORT:-80}:80"
+      - "${NGINX_SSL_PORT:-443}:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/conf.d:/etc/nginx/conf.d:ro
+      - ./nginx/logs:/var/log/nginx
+      - ${SSL_CERT_PATH:-./nginx/ssl}:/etc/nginx/ssl:ro
+    depends_on:
+      frontend:
+        condition: service_healthy
+      backend:
+        condition: service_healthy
+    networks:
+      - web-network
+    restart: unless-stopped
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "wget",
+          "--quiet",
+          "--tries=1",
+          "--spider",
+          "http://localhost/health",
+        ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+  # Next.js Frontend (Internal only)
+  frontend:
+    build:
+      context: ../apps/frontend
+      dockerfile: Dockerfile
+    container_name: web-frontend
+    environment:
+      - NODE_ENV=${NODE_ENV:-production}
+      - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL:-http://backend:3001}
+      # Add more environment variables as needed
+      # - NEXT_PUBLIC_FIREBASE_API_KEY=${NEXT_PUBLIC_FIREBASE_API_KEY}
+      # - NEXT_PUBLIC_SUPABASE_URL=${NEXT_PUBLIC_SUPABASE_URL}
+    # Production: Remove volumes for immutable deployment
+    # Development: Uncomment volumes for hot-reload
+    # volumes:
+    #   - ../apps/frontend:/app
+    #   - /app/node_modules
+    #   - /app/.next
+    networks:
+      - web-network
+    restart: unless-stopped
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "require('http').get('http://localhost:3000/api/health', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})",
+        ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    # Expose port only for internal network (not to host)
+    expose:
+      - "3000"
+
+  # Express Backend (Internal only)
+  backend:
+    build:
+      context: ../apps/backend
+      dockerfile: Dockerfile
+    container_name: web-backend
+    environment:
+      - NODE_ENV=${NODE_ENV:-production}
+      - PORT=${BACKEND_PORT:-3001}
+      - FRONTEND_URL=${FRONTEND_URL:-http://frontend:3000}
+      # Database configuration (uncomment when adding DB)
+      # - DATABASE_URL=${DATABASE_URL}
+      # - REDIS_URL=${REDIS_URL:-redis://redis:6379}
+      # Firebase/Supabase configuration
+      # - FIREBASE_ADMIN_KEY=${FIREBASE_ADMIN_KEY}
+      # - SUPABASE_SERVICE_KEY=${SUPABASE_SERVICE_KEY}
+    # Production: Remove volumes for immutable deployment
+    # Development: Uncomment volumes for hot-reload
+    # volumes:
+    #   - ../apps/backend:/app
+    #   - /app/node_modules
+    networks:
+      - web-network
+      # Uncomment when adding Redis/DB
+      # - data-network
+    restart: unless-stopped
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "require('http').get('http://localhost:3001/health', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})",
+        ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    # Expose port only for internal network (not to host)
+    expose:
+      - "3001"
+
+  # Redis (Optional - Uncomment when needed)
+  # redis:
+  #   image: redis:7-alpine
+  #   container_name: web-redis
+  #   command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD:-}
+  #   volumes:
+  #     - redis-data:/data
+  #   networks:
+  #     - data-network
+  #   restart: unless-stopped
+  #   healthcheck:
+  #     test: ["CMD", "redis-cli", "ping"]
+  #     interval: 30s
+  #     timeout: 10s
+  #     retries: 3
+  #   expose:
+  #     - "6379"
+
+  # PostgreSQL (Optional - Uncomment when needed)
+  # postgres:
+  #   image: postgres:15-alpine
+  #   container_name: web-postgres
+  #   environment:
+  #     - POSTGRES_DB=${POSTGRES_DB:-webapp}
+  #     - POSTGRES_USER=${POSTGRES_USER:-postgres}
+  #     - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-}
+  #   volumes:
+  #     - postgres-data:/var/lib/postgresql/data
+  #   networks:
+  #     - data-network
+  #   restart: unless-stopped
+  #   healthcheck:
+  #     test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres}"]
+  #     interval: 30s
+  #     timeout: 10s
+  #     retries: 3
+  #   expose:
+  #     - "5432"
+
+  # MySQL (Optional - Uncomment when needed)
+  # mysql:
+  #   image: mysql:8.0
+  #   container_name: web-mysql
+  #   environment:
+  #     - MYSQL_DATABASE=${MYSQL_DATABASE:-webapp}
+  #     - MYSQL_USER=${MYSQL_USER:-mysql}
+  #     - MYSQL_PASSWORD=${MYSQL_PASSWORD:-}
+  #     - MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD:-}
+  #   volumes:
+  #     - mysql-data:/var/lib/mysql
+  #   networks:
+  #     - data-network
+  #   restart: unless-stopped
+  #   healthcheck:
+  #     test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+  #     interval: 30s
+  #     timeout: 10s
+  #     retries: 3
+  #   expose:
+  #     - "3306"
+
+networks:
+  # Web application network (Frontend, Backend, Nginx)
+  web-network:
+    driver: bridge
+    name: web-network
+    internal: false # Nginx needs external access
+
+
+  # Data network (Redis, Database) - Uncomment when adding DB
+  # data-network:
+  #   driver: bridge
+  #   name: data-network
+  #   internal: true  # Database should not be accessible from outside
+# Volumes section - Uncomment when adding Redis/DB services
+# volumes:
+#   redis-data:
+#     driver: local
+#   postgres-data:
+#     driver: local
+#   mysql-data:
+#     driver: local
