@@ -96,16 +96,19 @@ ai-study/
 ### 요청 흐름 상세
 
 1. **정적 리소스 요청** (`/static/*`, `/images/*`)
+
    ```
    사용자 → Nginx → Next.js (정적 파일 직접 서빙)
    ```
 
 2. **API 요청** (`/api/*`)
+
    ```
    사용자 → Nginx → Express Backend → External Services
    ```
 
 3. **페이지 요청** (`/*` except `/api/*`)
+
    ```
    사용자 → Nginx → Next.js (SSR/SSG) → Express API (필요시)
    ```
@@ -148,7 +151,8 @@ const response = await fetch('http://backend:3001/api/users', {
 });
 ```
 
-**중요**: 
+**중요**:
+
 - 프로덕션에서는 상대 경로 사용 (`/api/users`)
 - Docker 내부에서는 서비스명 사용 (`http://backend:3001/api/users`)
 
@@ -192,6 +196,7 @@ const response = await fetch('http://backend:3001/api/users', {
 ## 4. 환경 변수 구조
 
 ### Frontend (.env.local)
+
 ```
 NEXT_PUBLIC_API_URL=http://localhost:3001
 NEXT_PUBLIC_FIREBASE_API_KEY=...
@@ -199,6 +204,7 @@ NEXT_PUBLIC_SUPABASE_URL=...
 ```
 
 ### Backend (.env)
+
 ```
 PORT=3001
 NODE_ENV=production
@@ -208,6 +214,7 @@ SUPABASE_SERVICE_KEY=...
 ```
 
 ### Docker Compose (.env)
+
 ```
 DOMAIN=example.com
 NGINX_PORT=80
