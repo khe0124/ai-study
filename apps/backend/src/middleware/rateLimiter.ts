@@ -54,6 +54,9 @@ export const socialAuthLimiter = rateLimit({
 export const speedLimiter = slowDown({
   windowMs: 15 * 60 * 1000, // 15분
   delayAfter: 50, // 50회 요청 후부터 지연 시작
-  delayMs: 500, // 500ms씩 지연 증가
+  delayMs: (used, req) => {
+    const delayAfter = req.slowDown?.limit || 50;
+    return (used - delayAfter) * 500; // 500ms씩 지연 증가
+  },
   maxDelayMs: 20000, // 최대 20초 지연
 });

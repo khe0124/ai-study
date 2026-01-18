@@ -1,24 +1,33 @@
 import jwt from "jsonwebtoken";
 import { JwtPayload } from "../types/auth";
 
-const JWT_SECRET = process.env.JWT_SECRET;
-const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || "7d";
+// 환경변수를 지연 평가하여 dotenv.config() 호출 후에 읽도록 함
+function getJwtSecret(): string {
+  const secret = process.env.JWT_SECRET;
+  if (!secret) {
+    throw new Error("JWT_SECRET 환경 변수가 설정되지 않았습니다.");
+  }
+  return secret;
+}
 
-if (!JWT_SECRET) {
-  throw new Error("JWT_SECRET 환경 변수가 설정되지 않았습니다.");
+function getJwtExpiresIn(): string {
+  return process.env.JWT_EXPIRES_IN || "7d";
 }
 
 export function generateToken(payload: JwtPayload): string {
-  return jwt.sign(payload, JWT_SECRET, {
-    expiresIn: JWT_EXPIRES_IN,
+  const secret = getJwtSecret();
+  const expiresIn = getJwtExpiresIn();
+
+  return jwt.sign(payload, secret, {
+    expiresIn: expiresIn,
     issuer: "ai-study-backend",
     audience: "ai-study-frontend",
-  });
+  } as jwt.SignOptions);
 }
 
 export function verifyToken(token: string): JwtPayload {
   try {
-    const decoded = jwt.verify(token, JWT_SECRET, {
+    const decoded = jwt.verify(token, getJwtSecret(), {
       issuer: "ai-study-backend",
       audience: "ai-study-frontend",
     }) as JwtPayload;

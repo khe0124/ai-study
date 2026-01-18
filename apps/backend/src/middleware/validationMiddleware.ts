@@ -42,13 +42,16 @@ export const validateSocialAuth = [
     .isIn(["google", "kakao", "apple"])
     .withMessage("지원하는 소셜 로그인 제공자는 google, kakao, apple입니다."),
   body("accessToken")
-    .if(body("provider").equals("google").or(body("provider").equals("kakao")))
+    .if((value, { req }) => {
+      const provider = req.body?.provider;
+      return provider === "google" || provider === "kakao";
+    })
     .notEmpty()
     .withMessage("accessToken이 필요합니다.")
     .isLength({ max: INPUT_LIMITS.TOKEN_MAX_LENGTH })
     .withMessage(`토큰 길이가 너무 깁니다.`),
   body("idToken")
-    .if(body("provider").equals("apple"))
+    .if((value, { req }) => req.body?.provider === "apple")
     .notEmpty()
     .withMessage("idToken이 필요합니다.")
     .isLength({ max: INPUT_LIMITS.TOKEN_MAX_LENGTH })
