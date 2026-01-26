@@ -132,16 +132,6 @@ npm start
 }
 ```
 
-#### Apple 로그인
-
-**Request Body:**
-
-```json
-{
-  "provider": "apple",
-  "idToken": "eyJraWQiOiJlWGF1bm1yb..."
-}
-```
 
 **Response:**
 
@@ -475,9 +465,20 @@ src/
 
 자세한 내용은 [SECURITY.md](./SECURITY.md)를 참고하세요.
 
+## 데이터베이스 연결 확인
+
+Supabase 데이터베이스 연결을 확인하려면:
+
+```bash
+cd apps/backend
+npm run test:db
+```
+
+자세한 내용은 [Supabase 연결 가이드](../docs/SUPABASE_CONNECTION.md)를 참고하세요.
+
 ## 주의사항
 
-1. **데이터베이스**: 현재는 인메모리 데이터베이스를 사용하고 있습니다. 프로덕션 환경에서는 PostgreSQL, MongoDB 등의 실제 데이터베이스를 사용하세요.
+1. **데이터베이스**: Supabase PostgreSQL을 사용합니다. 연결 확인은 `npm run test:db`로 테스트하세요.
 
 2. **JWT Secret**: 프로덕션 환경에서는 반드시 강력한 JWT_SECRET을 설정하세요 (최소 32자 권장). 기본값 사용 시 서버가 시작되지 않습니다.
 
@@ -485,7 +486,7 @@ src/
 
    - Google: Google Cloud Console에서 OAuth 클라이언트 ID 설정
    - Kakao: Kakao Developers에서 앱 등록 및 REST API 키 발급
-   - Apple: Apple Developer에서 Service ID 및 Key 설정 (프로덕션에서는 공개키 검증 필요)
+   - Kakao: [Kakao 로그인 설정 가이드](../docs/KAKAO_SETUP.md) 참고
 
 4. **비밀번호 보안**: 비밀번호는 bcrypt(rounds: 12)로 해싱되어 저장됩니다.
 

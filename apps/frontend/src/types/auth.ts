@@ -9,9 +9,8 @@ export interface RegisterRequest {
 }
 
 export interface SocialAuthRequest {
-  provider: 'google' | 'kakao' | 'apple';
-  accessToken?: string;
-  idToken?: string;
+  provider: 'google' | 'kakao';
+  accessToken: string;
 }
 
 export interface User {

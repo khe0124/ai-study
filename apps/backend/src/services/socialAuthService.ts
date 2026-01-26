@@ -27,11 +27,6 @@ interface KakaoUserInfo {
   };
 }
 
-interface AppleUserInfo {
-  sub: string; // Apple user ID
-  email?: string;
-  email_verified?: boolean;
-}
 
 export class SocialAuthService {
   static async authenticateWithGoogle(accessToken: string): Promise<AuthResponse> {
@@ -165,77 +160,6 @@ export class SocialAuthService {
     }
   }
 
-  static async authenticateWithApple(idToken: string): Promise<AuthResponse> {
-    // 토큰 길이 검증
-    if (idToken.length > INPUT_LIMITS.TOKEN_MAX_LENGTH) {
-      throw new Error("유효하지 않은 토큰입니다.");
-    }
-
-    try {
-      // Apple의 경우 idToken을 디코딩하여 사용자 정보 추출
-      // 주의: 프로덕션에서는 Apple의 공개키로 서명을 검증해야 합니다
-      const parts = idToken.split(".");
-      if (parts.length !== 3) {
-        throw new Error("유효하지 않은 Apple 토큰 형식입니다.");
-      }
-
-      const base64Url = parts[1];
-      const base64 = base64Url.replace(/-/g, "+").replace(/_/g, "/");
-      
-      // Base64 디코딩
-      let jsonPayload: string;
-      try {
-        jsonPayload = Buffer.from(base64, "base64").toString("utf-8");
-      } catch (error) {
-        throw new Error("토큰 디코딩에 실패했습니다.");
-      }
-
-      const appleUser: AppleUserInfo = JSON.parse(jsonPayload);
-
-      // 필수 필드 검증
-      if (!appleUser.sub) {
-        throw new Error("Apple 인증 정보가 올바르지 않습니다.");
-      }
-
-      // 기존 사용자 확인
-      let user = await UserModel.findByProvider("apple", appleUser.sub);
-
-      if (!user) {
-        // Apple의 경우 이메일이 없을 수 있음
-        const email = appleUser.email
-          ? normalizeEmail(appleUser.email)
-          : `apple_${appleUser.sub}@apple.local`;
-
-        user = await UserModel.create({
-          email: email,
-          provider: "apple",
-          providerId: appleUser.sub,
-        });
-      }
-
-      // JWT 토큰 생성
-      const token = generateToken({
-        userId: user.id,
-        email: user.email,
-        provider: user.provider,
-      });
-
-      return {
-        user: {
-          id: user.id,
-          email: user.email,
-          provider: user.provider,
-        },
-        token,
-      };
-    } catch (error) {
-      if (error instanceof Error) {
-        throw error;
-      }
-      throw new Error("Apple 인증에 실패했습니다.");
-    }
-  }
-
   static async authenticate(data: SocialAuthRequest): Promise<AuthResponse> {
     switch (data.provider) {
       case "google":
@@ -249,15 +173,9 @@ export class SocialAuthService {
           throw new Error("Kakao accessToken이 필요합니다.");
         }
         return await this.authenticateWithKakao(data.accessToken);
-
-      case "apple":
-        if (!data.idToken) {
-          throw new Error("Apple idToken이 필요합니다.");
-        }
-        return await this.authenticateWithApple(data.idToken);
-
+      
       default:
-        throw new Error("지원하지 않는 소셜 로그인 제공자입니다.");
+        throw new Error("지원하지 않는 소셜 로그인 제공자입니다. (google, kakao만 지원)");
     }
   }
 }

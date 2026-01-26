@@ -41,25 +41,18 @@ NEXT_PUBLIC_APPLE_CLIENT_ID=your-apple-service-id
 5. 앱 설정 → 앱 키에서 JavaScript 키 복사
 6. JavaScript 키를 `.env.local`에 추가
 
-### 3. Apple 로그인 설정
-
-1. [Apple Developer](https://developer.apple.com/) 접속 (유료 계정 필요)
-2. Certificates, Identifiers & Profiles → Identifiers
-3. Services ID 생성
-   - Identifier: `com.yourdomain.app`
-   - Sign in with Apple 활성화
-   - Return URLs: `http://localhost:3000/auth/apple/callback`
-4. 생성된 Services ID를 `.env.local`에 추가
-
 ## 구현된 기능
 
 - ✅ Google 로그인 (Google Identity Services)
 - ✅ Kakao 로그인 (Kakao SDK)
-- ✅ Apple 로그인 (OAuth 2.0)
 - ✅ 이메일/비밀번호 로그인
 - ✅ 회원가입
 - ✅ 토큰 관리 (localStorage)
 - ✅ 자동 리다이렉트
+
+## Kakao 로그인 설정
+
+자세한 설정 방법은 [Kakao 로그인 설정 가이드](../../docs/KAKAO_SETUP.md)를 참고하세요.
 
 ## 사용 방법
 

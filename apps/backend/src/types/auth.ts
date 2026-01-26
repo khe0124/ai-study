@@ -2,7 +2,7 @@ export interface User {
   id: string;
   email: string;
   password?: string; // 해시된 비밀번호
-  provider: 'email' | 'google' | 'kakao' | 'apple';
+  provider: 'email' | 'google' | 'kakao';
   providerId?: string; // 소셜 로그인 제공자의 사용자 ID
   createdAt: Date;
   updatedAt: Date;
@@ -28,10 +28,8 @@ export interface AuthResponse {
 }
 
 export interface SocialAuthRequest {
-  provider: 'google' | 'kakao' | 'apple';
-  accessToken?: string;
-  idToken?: string; // Apple의 경우
-  code?: string; // OAuth code
+  provider: 'google' | 'kakao';
+  accessToken: string;
 }
 
 export interface JwtPayload {

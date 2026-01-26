@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { authAPI } from '@/lib/api';
 import { setAuthToken, setAuthUser } from '@/lib/auth';
-import { initGoogleAuth, initKakaoAuth, loginWithKakao, loginWithApple } from '@/lib/socialAuth';
+import { initGoogleAuth, initKakaoAuth, loginWithKakao } from '@/lib/socialAuth';
 import Link from 'next/link';
 
 export default function LoginPage() {
@@ -20,12 +20,7 @@ export default function LoginPage() {
     const urlParams = new URLSearchParams(window.location.search);
     const errorParam = urlParams.get('error');
     if (errorParam) {
-      const errorMessages: Record<string, string> = {
-        apple_auth_failed: 'Apple 로그인에 실패했습니다.',
-        apple_code_exchange_needed: 'Apple 로그인: 추가 설정이 필요합니다.',
-        apple_auth_error: 'Apple 로그인 중 오류가 발생했습니다.',
-      };
-      setError(errorMessages[errorParam] || '로그인에 실패했습니다.');
+      setError('로그인에 실패했습니다.');
       // URL에서 에러 파라미터 제거
       window.history.replaceState({}, '', '/login');
     }
@@ -56,23 +51,20 @@ export default function LoginPage() {
 
   // 소셜 로그인 SDK 초기화
   useEffect(() => {
-    const googleClientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
     const kakaoKey = process.env.NEXT_PUBLIC_KAKAO_JAVASCRIPT_KEY;
 
-    // Google SDK 초기화 (선택적 - 필요시에만 로드)
-    if (googleClientId) {
-      // Google SDK는 버튼 클릭 시 동적으로 로드
-    }
-
     // Kakao SDK 초기화
-    if (kakaoKey) {
+    if (kakaoKey && kakaoKey.trim() !== '') {
       initKakaoAuth(kakaoKey).catch((err) => {
         console.warn('Kakao SDK 초기화 실패:', err);
+        // 초기화 실패는 에러로 표시하지 않음 (버튼 클릭 시 다시 시도)
       });
+    } else {
+      console.warn('Kakao JavaScript Key가 설정되지 않았습니다.');
     }
   }, []);
 
-  const handleSocialLogin = async (provider: 'google' | 'kakao' | 'apple') => {
+  const handleSocialLogin = async (provider: 'google' | 'kakao') => {
     setError(null);
     setLoading(true);
 
@@ -105,53 +97,68 @@ export default function LoginPage() {
         });
       } else if (provider === 'kakao') {
         const kakaoKey = process.env.NEXT_PUBLIC_KAKAO_JAVASCRIPT_KEY;
-        if (!kakaoKey) {
-          setError('Kakao JavaScript Key가 설정되지 않았습니다.');
+        if (!kakaoKey || kakaoKey.trim() === '') {
+          setError('Kakao JavaScript Key가 설정되지 않았습니다. 환경 변수를 확인해주세요.');
           setLoading(false);
           return;
         }
 
-        // Kakao SDK가 초기화되지 않은 경우 초기화
-        if (!window.Kakao?.isInitialized()) {
-          await initKakaoAuth(kakaoKey);
-        }
-
-        loginWithKakao(
-          async (accessToken: string) => {
+        try {
+          // Kakao SDK가 초기화되지 않은 경우 초기화
+          if (!window.Kakao?.isInitialized()) {
             try {
-              const response = await authAPI.socialLogin({
-                provider: 'kakao',
-                accessToken,
-              });
+              await initKakaoAuth(kakaoKey);
+            } catch (initError) {
+              setError(
+                initError instanceof Error
+                  ? initError.message
+                  : 'Kakao SDK 초기화에 실패했습니다.'
+              );
+              setLoading(false);
+              return;
+            }
+          }
 
-              if (response.success && response.data) {
-                setAuthToken(response.data.token);
-                setAuthUser(response.data.user);
-                router.push('/posts');
-                router.refresh();
+          // Kakao 로그인 실행
+          loginWithKakao(
+            async (accessToken: string) => {
+              try {
+                const response = await authAPI.socialLogin({
+                  provider: 'kakao',
+                  accessToken,
+                });
+
+                if (response.success && response.data) {
+                  setAuthToken(response.data.token);
+                  setAuthUser(response.data.user);
+                  router.push('/posts');
+                  router.refresh();
+                } else {
+                  setError(response.message || 'Kakao 로그인에 실패했습니다.');
+                  setLoading(false);
+                }
+              } catch (err) {
+                const errorMessage =
+                  err instanceof Error
+                    ? err.message
+                    : '서버와의 통신 중 오류가 발생했습니다.';
+                setError(errorMessage);
+                setLoading(false);
               }
-            } catch (err) {
-              setError(err instanceof Error ? err.message : 'Kakao 로그인에 실패했습니다.');
+            },
+            (error: Error) => {
+              setError(error.message);
               setLoading(false);
             }
-          },
-          (error: Error) => {
-            setError(error.message);
-            setLoading(false);
-          }
-        );
-      } else if (provider === 'apple') {
-        const appleClientId = process.env.NEXT_PUBLIC_APPLE_CLIENT_ID;
-        if (!appleClientId) {
-          setError('Apple Client ID가 설정되지 않았습니다.');
+          );
+        } catch (err) {
+          setError(
+            err instanceof Error
+              ? err.message
+              : 'Kakao 로그인 중 오류가 발생했습니다.'
+          );
           setLoading(false);
-          return;
         }
-
-        const redirectUri = `${window.location.origin}/auth/apple/callback`;
-        loginWithApple(appleClientId, redirectUri);
-        // Apple 로그인은 리디렉션되므로 여기서는 로딩 상태 유지하지 않음
-        return;
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : '소셜 로그인에 실패했습니다.');
@@ -241,15 +248,15 @@ export default function LoginPage() {
             </div>
           </div>
 
-          <div className="mt-6 grid grid-cols-3 gap-3">
+          <div className="mt-6 grid grid-cols-2 gap-3">
             {/* 구글 로그인 */}
             <button
               type="button"
               onClick={() => handleSocialLogin('google')}
               disabled={loading}
-              className="w-full inline-flex justify-center py-2 px-4 border border-gray-300 rounded-md shadow-sm bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full inline-flex justify-center items-center py-2 px-4 border border-gray-300 rounded-md shadow-sm bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              <svg className="h-5 w-5" viewBox="0 0 24 24">
+              <svg className="h-5 w-5 mr-2" viewBox="0 0 24 24">
                 <path
                   fill="currentColor"
                   d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
@@ -267,6 +274,7 @@ export default function LoginPage() {
                   d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
                 />
               </svg>
+              <span>Google</span>
             </button>
 
             {/* 카카오 로그인 */}
@@ -274,21 +282,17 @@ export default function LoginPage() {
               type="button"
               onClick={() => handleSocialLogin('kakao')}
               disabled={loading}
-              className="w-full inline-flex justify-center py-2 px-4 border border-gray-300 rounded-md shadow-sm bg-yellow-300 text-sm font-medium text-gray-900 hover:bg-yellow-400 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full inline-flex justify-center items-center py-2 px-4 border border-gray-300 rounded-md shadow-sm bg-[#FEE500] text-sm font-medium text-gray-900 hover:bg-[#FDD835] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
-              <span className="font-bold">카카오</span>
-            </button>
-
-            {/* 애플 로그인 */}
-            <button
-              type="button"
-              onClick={() => handleSocialLogin('apple')}
-              disabled={loading}
-              className="w-full inline-flex justify-center py-2 px-4 border border-gray-300 rounded-md shadow-sm bg-black text-sm font-medium text-white hover:bg-gray-800 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              <svg className="h-5 w-5" fill="currentColor" viewBox="0 0 24 24">
-                <path d="M17.05 20.28c-.98.95-2.05.88-3.08.4-1.09-.5-2.08-.48-3.24 0-1.44.62-2.2.44-3.06-.4C2.79 15.25 3.51 7.59 9.05 7.31c1.35.07 2.29.74 3.08.8 1.18-.24 2.31-.93 3.57-.84 1.51.12 2.65.72 3.4 1.8-3.12 1.87-2.38 5.98.48 7.13-.57 1.5-1.31 2.99-2.54 4.09l.01-.01zM12.03 7.25c-.15-2.23 1.66-4.07 3.74-4.25.29 2.58-2.34 4.5-3.74 4.25z" />
+              <svg
+                className="h-5 w-5 mr-2"
+                viewBox="0 0 24 24"
+                fill="currentColor"
+                xmlns="http://www.w3.org/2000/svg"
+              >
+                <path d="M12 3C7.58 3 4 5.58 4 9.5c0 2.85 2.2 5.25 5.2 6.1-.07-.6-.13-1.52.03-2.17l.36-1.54s-.9-.18-.9-.18c-1.2-.27-1.47-1.12-1.47-1.7 0-1.17.7-1.78 1.4-1.78.66 0 .98.5.98.85 0 .66-1.05 1.65-1.6 2.55-.45.75-.34 1.14-.26 1.25.15.2.5.15.7.1.2-.05.85-.55 1.15-1.05.37-.5.65-1.05.65-1.9 0-1.25-.75-2.15-1.85-2.15-1.5 0-2.4 1.1-2.4 2.35 0 .85.35 1.4.35 1.4l-1.2 5.1c-.35 1.5-.05 3.35-.03 3.5 0 .2.15.25.2.1.1-.2 1.4-1.75 1.85-3.35.15-.6.9-3.7.9-3.7.45.85 1.75 1.6 3.15 1.6 4.15 0 6.95-3.75 6.95-7C20 5.58 16.42 3 12 3z" />
               </svg>
+              <span className="font-bold">카카오 로그인</span>
             </button>
           </div>
         </div>

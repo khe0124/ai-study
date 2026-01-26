@@ -103,6 +103,8 @@ docker-compose logs -f
 - [빠른 배포 가이드](./docs/DEPLOYMENT_QUICK_START.md) - 경험 있는 개발자용 요약 가이드
 - [배포 가이드](./docs/DEPLOYMENT.md) - 일반 배포 가이드
 - [통신 흐름](./docs/COMMUNICATION_FLOW.md) - 서비스 간 통신 구조 상세
+- [Kakao 로그인 설정](./docs/KAKAO_SETUP.md) - Kakao 계정 연동 가이드
+- [Supabase 연결 확인](./docs/SUPABASE_CONNECTION.md) - 데이터베이스 연결 확인 방법
 
 ## 🔧 기술 스택
 

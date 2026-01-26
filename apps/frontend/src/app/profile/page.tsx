@@ -47,7 +47,6 @@ export default function ProfilePage() {
     email: "이메일",
     google: "Google",
     kakao: "Kakao",
-    apple: "Apple",
   };
 
   return (
