@@ -7,14 +7,25 @@
     "apps/*"
   ],
   "scripts": {
-    "dev": "concurrently \"npm run dev --workspace=apps/frontend\" \"npm run dev --workspace=apps/backend\"",
-    "build": "npm run build --workspace=apps/frontend && npm run build --workspace=apps/backend",
+    "dev": "turbo run dev",
+    "build": "turbo run build",
+    "start": "turbo run start",
+    "lint": "turbo run lint",
+    "test": "turbo run test",
+    "test:watch": "turbo run test:watch",
+    "test:coverage": "turbo run test:coverage",
+    "clean": "turbo run clean && rm -rf node_modules",
     "docker:build": "docker-compose -f infrastructure/docker-compose.yml build",
     "docker:up": "docker-compose -f infrastructure/docker-compose.yml up -d",
     "docker:down": "docker-compose -f infrastructure/docker-compose.yml down",
     "docker:logs": "docker-compose -f infrastructure/docker-compose.yml logs -f"
   },
   "devDependencies": {
-    "concurrently": "^8.2.2"
+    "turbo": "^2.0.0"
+  },
+  "packageManager": "npm@10.1.0",
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=9.0.0"
   }
 }

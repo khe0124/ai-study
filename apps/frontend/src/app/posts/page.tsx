@@ -2,9 +2,11 @@
 
 import { useEffect, useRef } from 'react';
 import { useInfiniteQuery } from '@tanstack/react-query';
+import Link from 'next/link';
 import { postAPI } from '@/lib/api';
 import { PostsResponse, Post } from '@/types/post';
 import PostCard from '@/components/PostCard';
+import { isAuthenticated } from '@/lib/auth';
 
 const LIMIT = 10;
 
@@ -71,9 +73,19 @@ export default function PostsPage() {
   }, [hasNextPage, isFetchingNextPage, isError, fetchNextPage]);
 
   return (
-    <div className="min-h-screen bg-gray-50 py-8">
-      <div className="max-w-6xl mx-auto px-4">
-        <h1 className="text-3xl font-bold mb-8 text-gray-900">게시글 목록</h1>
+    <div className="py-8">
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="flex items-center justify-between mb-8">
+          <h1 className="text-3xl font-bold text-gray-900">게시글 목록</h1>
+          {isAuthenticated() && (
+            <Link
+              href="/posts/new"
+              className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
+            >
+              게시글 작성
+            </Link>
+          )}
+        </div>
 
         {/* 에러 표시 */}
         {isError && (

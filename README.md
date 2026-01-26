@@ -2,6 +2,8 @@
 
 Next.js + Express + Nginx를 사용한 실무 운영 가능한 웹 서비스 Monorepo 구조입니다.
 
+**Turbo Monorepo**로 구성되어 빌드 캐싱과 병렬 실행을 지원합니다.
+
 ## 🏗️ 프로젝트 구조
 
 ```
@@ -15,18 +17,68 @@ ai-study/
 
 ## 🚀 빠른 시작
 
+### 사전 요구사항
+
+- Node.js 18 이상
+- npm 9 이상
+- Docker & Docker Compose (선택사항)
+
 ### 로컬 개발 환경
 
 ```bash
-# 의존성 설치
+# ⚠️ 중요: 반드시 프로젝트 루트 디렉토리에서 실행하세요
+# apps/frontend나 apps/backend 디렉토리에서 직접 npm install을 실행하면 에러가 발생합니다
+
+# 의존성 설치 (루트에서만 실행)
+cd /Users/haeun/ai-study
 npm install
 
-# 개발 서버 실행 (프론트엔드 + 백엔드)
+# 개발 서버 실행 (Frontend + Backend)
 npm run dev
 ```
 
 - Frontend: http://localhost:3000
 - Backend: http://localhost:3001
+
+### 환경 변수 설정
+
+#### Frontend
+```bash
+cd apps/frontend
+cp .env.example .env.local
+# .env.local 파일을 편집하여 환경 변수 설정
+```
+
+#### Backend
+```bash
+cd apps/backend
+cp .env.example .env
+# .env 파일을 편집하여 환경 변수 설정
+```
+
+### 빌드
+
+```bash
+# 모든 앱 빌드
+npm run build
+
+# 특정 앱만 빌드
+npm run build --filter=frontend
+npm run build --filter=backend
+```
+
+### 테스트
+
+```bash
+# 모든 테스트 실행
+npm run test
+
+# 특정 앱만 테스트
+npm run test --filter=backend
+
+# 커버리지 리포트
+npm run test:coverage
+```
 
 ### Docker로 실행
 
@@ -54,11 +106,34 @@ docker-compose logs -f
 
 ## 🔧 기술 스택
 
+- **Monorepo**: Turbo
 - **Frontend**: Next.js 14 (App Router)
 - **Backend**: Express.js + TypeScript
 - **Reverse Proxy**: Nginx
 - **Containerization**: Docker + Docker Compose
 - **Package Management**: npm workspaces
+
+## 🎯 Turbo 명령어
+
+Turbo를 사용한 주요 명령어:
+
+```bash
+# 개발 서버 실행 (모든 앱)
+npm run dev
+
+# 빌드 (모든 앱, 캐싱 사용)
+npm run build
+
+# 특정 앱만 실행
+npm run dev --filter=frontend
+npm run dev --filter=backend
+
+# 의존성 그래프 확인
+npx turbo run build --graph
+
+# 캐시 정리
+npx turbo clean
+```
 
 ## 🔐 향후 확장 계획
 
