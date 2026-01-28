@@ -25,6 +25,7 @@ declare global {
       init: (key: string) => void;
       Auth: {
         login: (options: {
+          scope?: string;
           success: (authObj: { access_token: string }) => void;
           fail: (err: unknown) => void;
         }) => void;
@@ -73,7 +74,7 @@ export async function initGoogleAuth(
     };
 
     document.head.appendChild(script);
-  };);
+  });
 }
 
 function setupGoogleAuth(
@@ -128,25 +129,28 @@ export async function initKakaoAuth(javascriptKey: string): Promise<void> {
       return;
     }
 
-    // 스크립트가 로드 중인 경우 대기
+    // 스크립트가 로드 중인 경우 대기 (타임아웃 시 스크립트 제거 후 재시도)
     const existingScript = document.getElementById("kakao-sdk-script");
     if (existingScript) {
-      waitForKakaoSDK(javascriptKey, resolve, reject);
+      waitForKakaoSDK(javascriptKey, resolve, reject, () =>
+        loadKakaoSDK(javascriptKey, resolve, reject)
+      );
       return;
     }
 
     // Kakao SDK 스크립트 로드
     loadKakaoSDK(javascriptKey, resolve, reject);
-  };);
+  });
 }
 
 function waitForKakaoSDK(
   javascriptKey: string,
   resolve: () => void,
-  reject: (error: Error) => void
+  reject: (error: Error) => void,
+  onTimeoutRetry?: () => void
 ): void {
   let attempts = 0;
-  const maxAttempts = 50; // 5초 (100ms * 50)
+  const maxAttempts = 150; // 15초 (100ms * 150)
 
   const checkInterval = setInterval(() => {
     attempts++;
@@ -161,7 +165,13 @@ function waitForKakaoSDK(
       }
     } else if (attempts >= maxAttempts) {
       clearInterval(checkInterval);
-      reject(new Error("Kakao SDK 로드 타임아웃"));
+      const script = document.getElementById("kakao-sdk-script");
+      if (script?.parentNode) script.remove();
+      if (onTimeoutRetry) {
+        onTimeoutRetry();
+      } else {
+        reject(new Error("Kakao SDK 로드 타임아웃"));
+      }
     }
   }, 100);
 }
@@ -178,17 +188,31 @@ function loadKakaoSDK(
   script.crossOrigin = "anonymous";
 
   script.onload = () => {
-    if (window.Kakao) {
-      try {
-        window.Kakao.init(javascriptKey);
-        resolve();
-      } catch (error) {
-        reject(new Error("Kakao SDK 초기화 실패"));
+    const tryInit = () => {
+      if (window.Kakao) {
+        try {
+          window.Kakao.init(javascriptKey);
+          resolve();
+        } catch (error) {
+          reject(new Error("Kakao SDK 초기화 실패"));
+        }
+        return;
       }
-    } else {
       reject(new Error("Kakao SDK 로드 후 초기화 실패"));
+    };
+    if (window.Kakao) {
+      tryInit();
+      return;
     }
-  };
+    // 일부 환경에서 SDK가 한 틱 늦게 노출되는 경우 대비 (최대 500ms 대기)
+    const started = Date.now();
+    const waitForKakao = () => {
+      if (window.Kakao) tryInit();
+      else if (Date.now() - started < 500) setTimeout(waitForKakao, 50);
+      else reject(new Error("Kakao SDK 로드 후 초기화 실패"));
+    };
+    setTimeout(waitForKakao, 50);
+  };;
 
   script.onerror = () => {
     reject(new Error("Kakao SDK 스크립트 로드 실패"));

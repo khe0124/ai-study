@@ -4,6 +4,7 @@ import { generateToken } from "../utils/jwt";
 import { SocialAuthRequest, AuthResponse, User } from "../types/auth";
 import { normalizeEmail } from "../config/security";
 import { INPUT_LIMITS } from "../config/security";
+import { BadRequestError, UnauthorizedError } from "../utils/errors";
 
 interface GoogleUserInfo {
   id: string;
@@ -27,12 +28,13 @@ interface KakaoUserInfo {
   };
 }
 
-
 export class SocialAuthService {
-  static async authenticateWithGoogle(accessToken: string): Promise<AuthResponse> {
+  static async authenticateWithGoogle(
+    accessToken: string,
+  ): Promise<AuthResponse> {
     // 토큰 길이 검증
     if (accessToken.length > INPUT_LIMITS.TOKEN_MAX_LENGTH) {
-      throw new Error("유효하지 않은 토큰입니다.");
+      throw new BadRequestError("유효하지 않은 토큰입니다.");
     }
 
     try {
@@ -44,13 +46,15 @@ export class SocialAuthService {
             Authorization: `Bearer ${accessToken}`,
           },
           timeout: 10000, // 10초 타임아웃
-        }
+        },
       );
 
       const googleUser = response.data;
 
       if (!googleUser.verified_email) {
-        throw new Error("이메일 인증이 완료되지 않은 Google 계정입니다.");
+        throw new BadRequestError(
+          "이메일 인증이 완료되지 않은 Google 계정입니다.",
+        );
       }
 
       // 이메일 정규화
@@ -86,18 +90,20 @@ export class SocialAuthService {
     } catch (error) {
       if (axios.isAxiosError(error)) {
         if (error.response?.status === 401) {
-          throw new Error("유효하지 않은 Google 토큰입니다.");
+          throw new UnauthorizedError("유효하지 않은 Google 토큰입니다.");
         }
-        throw new Error("Google 인증에 실패했습니다.");
+        throw new BadRequestError("Google 인증에 실패했습니다.");
       }
       throw error;
     }
   }
 
-  static async authenticateWithKakao(accessToken: string): Promise<AuthResponse> {
+  static async authenticateWithKakao(
+    accessToken: string,
+  ): Promise<AuthResponse> {
     // 토큰 길이 검증
     if (accessToken.length > INPUT_LIMITS.TOKEN_MAX_LENGTH) {
-      throw new Error("유효하지 않은 토큰입니다.");
+      throw new BadRequestError("유효하지 않은 토큰입니다.");
     }
 
     try {
@@ -109,21 +115,22 @@ export class SocialAuthService {
             Authorization: `Bearer ${accessToken}`,
           },
           timeout: 10000, // 10초 타임아웃
-        }
+        },
       );
 
       const kakaoUser = response.data;
-      const email = kakaoUser.kakao_account?.email;
-
-      if (!email) {
-        throw new Error("이메일 정보가 제공되지 않았습니다.");
-      }
+      const email =
+        kakaoUser.kakao_account?.email ||
+        `kakao_${kakaoUser.id}@kakao.placeholder`;
 
       // 이메일 정규화
       const normalizedEmail = normalizeEmail(email);
 
       // 기존 사용자 확인
-      let user = await UserModel.findByProvider("kakao", kakaoUser.id.toString());
+      let user = await UserModel.findByProvider(
+        "kakao",
+        kakaoUser.id.toString(),
+      );
 
       if (!user) {
         // 새 사용자 생성
@@ -152,9 +159,9 @@ export class SocialAuthService {
     } catch (error) {
       if (axios.isAxiosError(error)) {
         if (error.response?.status === 401) {
-          throw new Error("유효하지 않은 Kakao 토큰입니다.");
+          throw new UnauthorizedError("유효하지 않은 Kakao 토큰입니다.");
         }
-        throw new Error("Kakao 인증에 실패했습니다.");
+        throw new BadRequestError("Kakao 인증에 실패했습니다.");
       }
       throw error;
     }
@@ -164,18 +171,20 @@ export class SocialAuthService {
     switch (data.provider) {
       case "google":
         if (!data.accessToken) {
-          throw new Error("Google accessToken이 필요합니다.");
+          throw new BadRequestError("Google accessToken이 필요합니다.");
         }
         return await this.authenticateWithGoogle(data.accessToken);
 
       case "kakao":
         if (!data.accessToken) {
-          throw new Error("Kakao accessToken이 필요합니다.");
+          throw new BadRequestError("Kakao accessToken이 필요합니다.");
         }
         return await this.authenticateWithKakao(data.accessToken);
-      
+
       default:
-        throw new Error("지원하지 않는 소셜 로그인 제공자입니다. (google, kakao만 지원)");
+        throw new BadRequestError(
+          "지원하지 않는 소셜 로그인 제공자입니다. (google, kakao만 지원)",
+        );
     }
   }
 }

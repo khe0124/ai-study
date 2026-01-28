@@ -1,4 +1,4 @@
-import { PostsResponse, PostResponse } from '@/types/post';
+import { PostsResponse, PostResponse, Comment } from '@/types/post';
 import { AuthResponse, LoginRequest, RegisterRequest, SocialAuthRequest } from '@/types/auth';
 
 // Next.js rewrites를 사용하므로 상대 경로 사용
@@ -35,6 +35,24 @@ export const postAPI = {
   // 게시글 상세 조회
   getPost: async (id: string): Promise<PostResponse> => {
     return fetchAPI<PostResponse>(`/api/posts/${id}`);
+  },
+
+  // 댓글 등록
+  createComment: async (
+    postId: string,
+    content: string,
+    token: string
+  ): Promise<{ success: boolean; data: Comment }> => {
+    return fetchAPI<{ success: boolean; data: Comment }>(
+      `/api/posts/${postId}/comments`,
+      {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ content }),
+      }
+    );
   },
 };
 

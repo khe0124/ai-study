@@ -8,6 +8,7 @@ import {
   User,
 } from "../types/auth";
 import { normalizeEmail } from "../config/security";
+import { ConflictError, UnauthorizedError, NotFoundError } from "../utils/errors";
 
 // Timing Attack 방지를 위한 일정한 시간 지연
 const TIMING_DELAY_MS = 100; // 100ms 지연
@@ -24,7 +25,7 @@ export class AuthService {
     // 이메일 중복 확인
     const existingUser = await UserModel.findByEmail(normalizedEmail);
     if (existingUser) {
-      throw new Error("이미 존재하는 이메일입니다.");
+      throw new ConflictError("이미 존재하는 이메일입니다.");
     }
 
     // 비밀번호 해싱 (bcrypt rounds: 10-12 권장)
@@ -88,7 +89,8 @@ export class AuthService {
       !user.password ||
       !isPasswordValid
     ) {
-      throw new Error("이메일 또는 비밀번호가 올바르지 않습니다.");
+      await delay(TIMING_DELAY_MS - elapsed);
+      throw new UnauthorizedError("이메일 또는 비밀번호가 올바르지 않습니다.");
     }
 
     // JWT 토큰 생성

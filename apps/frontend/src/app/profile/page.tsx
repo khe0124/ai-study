@@ -27,13 +27,13 @@ export default function ProfilePage() {
 
         const response = await authAPI.getProfile(token);
         if (response.success && response.data) {
-          setUser(response.data);
+          setUser(response.data.user);
         }
       } catch (err) {
         setError(
           err instanceof Error
             ? err.message
-            : "프로필을 불러오는데 실패했습니다.",
+            : "프로필을 불러오는데 실패했습니다."
         );
       } finally {
         setLoading(false);

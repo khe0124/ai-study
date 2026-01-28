@@ -5,6 +5,7 @@ import { useParams } from 'next/navigation';
 import { postAPI } from '@/lib/api';
 import { Post } from '@/types/post';
 import { getImageUrl } from '@/lib/utils';
+import { CommentForm } from '@/components/CommentForm';
 
 export default function PostDetailPage() {
   const params = useParams();
@@ -134,6 +135,20 @@ export default function PostDetailPage() {
               <h2 className="text-2xl font-bold mb-4 text-gray-900">
                 댓글 ({post.comments?.length || 0})
               </h2>
+
+              <CommentForm
+                postId={post.id}
+                onSuccess={(comment) => {
+                  setPost((prev) =>
+                    prev
+                      ? {
+                          ...prev,
+                          comments: [...(prev.comments || []), comment],
+                        }
+                      : prev
+                  );
+                }}
+              />
 
               {post.comments && post.comments.length > 0 ? (
                 <div className="space-y-4">

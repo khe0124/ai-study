@@ -463,7 +463,7 @@ src/
 
 5. **에러 메시지**: 프로덕션에서 정보 노출 최소화
 
-자세한 내용은 [SECURITY.md](./SECURITY.md)를 참고하세요.
+자세한 내용은 [BACKEND_STRUCTURE.md](./BACKEND_STRUCTURE.md)의 보안·테스트 섹션을 참고하세요.
 
 ## 데이터베이스 연결 확인
 

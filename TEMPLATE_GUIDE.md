@@ -170,6 +170,5 @@ npm run start
 ## 📚 참고 문서
 
 - [아키텍처 설계](./docs/ARCHITECTURE.md)
-- [배포 가이드](./docs/DEPLOYMENT_AWS.md)
-- [보안 가이드](./apps/backend/SECURITY.md)
-- [테스트 가이드](./apps/backend/TESTING.md)
+- [배포 가이드](./docs/DEPLOYMENT.md)
+- [백엔드 구조 가이드](./apps/backend/BACKEND_STRUCTURE.md) (보안·테스트·에러핸들링 등 포함)

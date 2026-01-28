@@ -116,65 +116,22 @@ services:
       - "3001"
 
   # Redis (Optional - Uncomment when needed)
-  # redis:
-  #   image: redis:7-alpine
-  #   container_name: web-redis
-  #   command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD:-}
-  #   volumes:
-  #     - redis-data:/data
-  #   networks:
-  #     - data-network
-  #   restart: unless-stopped
-  #   healthcheck:
-  #     test: ["CMD", "redis-cli", "ping"]
-  #     interval: 30s
-  #     timeout: 10s
-  #     retries: 3
-  #   expose:
-  #     - "6379"
-
-  # PostgreSQL (Optional - Uncomment when needed)
-  # postgres:
-  #   image: postgres:15-alpine
-  #   container_name: web-postgres
-  #   environment:
-  #     - POSTGRES_DB=${POSTGRES_DB:-webapp}
-  #     - POSTGRES_USER=${POSTGRES_USER:-postgres}
-  #     - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-}
-  #   volumes:
-  #     - postgres-data:/var/lib/postgresql/data
-  #   networks:
-  #     - data-network
-  #   restart: unless-stopped
-  #   healthcheck:
-  #     test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres}"]
-  #     interval: 30s
-  #     timeout: 10s
-  #     retries: 3
-  #   expose:
-  #     - "5432"
-
-  # MySQL (Optional - Uncomment when needed)
-  # mysql:
-  #   image: mysql:8.0
-  #   container_name: web-mysql
-  #   environment:
-  #     - MYSQL_DATABASE=${MYSQL_DATABASE:-webapp}
-  #     - MYSQL_USER=${MYSQL_USER:-mysql}
-  #     - MYSQL_PASSWORD=${MYSQL_PASSWORD:-}
-  #     - MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD:-}
-  #   volumes:
-  #     - mysql-data:/var/lib/mysql
-  #   networks:
-  #     - data-network
-  #   restart: unless-stopped
-  #   healthcheck:
-  #     test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
-  #     interval: 30s
-  #     timeout: 10s
-  #     retries: 3
-  #   expose:
-  #     - "3306"
+  redis:
+    image: redis:7-alpine
+    container_name: redis
+    command: redis-server --appendonly yes
+    volumes:
+      - redis-data:/data
+    networks:
+      - data-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    ports:
+      - "6379:6379"
 
 networks:
   # Web application network (Frontend, Backend, Nginx)
@@ -183,17 +140,18 @@ networks:
     name: web-network
     internal: false # Nginx needs external access
 
+  # Data network (Redis, Database)
+  # internal: false 로 두어야 호스트(로컬 dev)에서 localhost:6379 로 Redis 접속 가능
+  data-network:
+    driver: bridge
+    name: data-network
+    internal: false
 
-  # Data network (Redis, Database) - Uncomment when adding DB
-  # data-network:
-  #   driver: bridge
-  #   name: data-network
-  #   internal: true  # Database should not be accessible from outside
-# Volumes section - Uncomment when adding Redis/DB services
-# volumes:
-#   redis-data:
-#     driver: local
-#   postgres-data:
-#     driver: local
-#   mysql-data:
-#     driver: local
+# Volumes section
+volumes:
+  redis-data:
+    driver: local
+  # postgres-data:
+  #   driver: local
+  # mysql-data:
+  #   driver: local

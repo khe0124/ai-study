@@ -1,4 +1,4 @@
-import { Post } from "../types/post";
+import { Post, Comment } from "../types/post";
 import { CommentModel } from "./Comment";
 import { getPool } from "../config/database";
 
@@ -86,21 +86,49 @@ export class PostModel {
       [limit, offset]
     );
 
-    const posts: Post[] = [];
-    for (const row of result.rows) {
-      const comments = await CommentModel.findByPostId(row.id);
-      posts.push({
+    if (result.rows.length === 0) {
+      return { posts: [], total };
+    }
+
+    // 모든 게시글 ID 수집
+    const postIds = result.rows.map((row) => row.id);
+
+    // 배치로 모든 댓글 조회 (N+1 쿼리 문제 해결)
+    const commentsResult = await pool.query(
+      `SELECT * FROM comments 
+       WHERE post_id = ANY($1::text[]) 
+       ORDER BY post_id, created_at ASC`,
+      [postIds]
+    );
+
+    // 게시글별로 댓글 그룹화
+    const commentsByPostId = new Map<string, Comment[]>();
+    for (const row of commentsResult.rows) {
+      const comment: Comment = {
         id: row.id,
-        title: row.title,
-        content: row.content,
+        postId: row.post_id,
         authorId: row.author_id,
-        thumbnailImage: row.thumbnail_image,
-        attachments: row.attachments || [],
-        comments,
+        content: row.content,
         createdAt: row.created_at,
         updatedAt: row.updated_at,
-      });
+      };
+      const comments = commentsByPostId.get(comment.postId) || [];
+      comments.push(comment);
+      commentsByPostId.set(comment.postId, comments);
     }
+
+    // 게시글과 댓글 매핑
+    const posts: Post[] = result.rows.map((row) => ({
+      id: row.id,
+      title: row.title,
+      content: row.content,
+      authorId: row.author_id,
+      thumbnailImage: row.thumbnail_image,
+      attachments: row.attachments || [],
+      comments: commentsByPostId.get(row.id) || [],
+      createdAt: row.created_at,
+      updatedAt: row.updated_at,
+    }));
 
     return { posts, total };
   }

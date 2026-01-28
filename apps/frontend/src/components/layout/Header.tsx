@@ -1,32 +1,41 @@
-'use client';
+"use client";
 
-import Link from 'next/link';
-import { useRouter, usePathname } from 'next/navigation';
-import { getAuthUser, clearAuth, isAuthenticated } from '@/lib/auth';
-import { useState, useEffect } from 'react';
-import Navigation from './Navigation';
-import MobileNavigation from './MobileNavigation';
+import Link from "next/link";
+import { useRouter, usePathname } from "next/navigation";
+import { getAuthUser, clearAuth, isAuthenticated } from "@/lib/auth";
+import { useState, useEffect } from "react";
+import Navigation from "./Navigation";
+import MobileNavigation from "./MobileNavigation";
 
 export default function Header() {
   const router = useRouter();
   const pathname = usePathname();
-  const [user, setUser] = useState<{ id: string; email: string; provider: string } | null>(null);
+  const [mounted, setMounted] = useState(false);
+  const [user, setUser] = useState<{
+    id: string;
+    email: string;
+    provider: string;
+  } | null>(null);
   const [showUserMenu, setShowUserMenu] = useState(false);
 
   useEffect(() => {
-    if (isAuthenticated()) {
+    setMounted(true);
+  }, []);
+
+  useEffect(() => {
+    if (mounted && isAuthenticated()) {
       setUser(getAuthUser());
     }
-  }, [pathname]);
+  }, [mounted, pathname]);
 
   const handleLogout = () => {
     clearAuth();
-    router.push('/login');
+    router.push("/login");
     router.refresh();
   };
 
   const isActive = (path: string) => {
-    return pathname === path || pathname?.startsWith(path + '/');
+    return pathname === path || pathname?.startsWith(path + "/");
   };
 
   return (
@@ -36,12 +45,14 @@ export default function Header() {
           {/* Logo */}
           <div className="flex items-center">
             <Link href="/" className="flex items-center space-x-2">
-              <span className="text-2xl font-bold text-blue-600">WebService</span>
+              <span className="text-2xl font-bold text-blue-600">
+                WebService
+              </span>
             </Link>
           </div>
 
-          {/* Navigation */}
-          {isAuthenticated() && (
+          {/* Navigation: 마운트 후에만 렌더해 서버/클라이언트 Hydration 불일치 방지 */}
+          {mounted && isAuthenticated() && (
             <>
               <Navigation className="hidden md:flex" />
               <MobileNavigation />
@@ -50,7 +61,13 @@ export default function Header() {
 
           {/* Right side */}
           <div className="flex items-center space-x-4">
-            {isAuthenticated() ? (
+            {!mounted ? (
+              /* 마운트 전에는 서버/클라이언트 동일 UI로 Hydration 오류 방지 */
+              <div
+                className="h-9 w-16 bg-gray-100 rounded-md animate-pulse"
+                aria-hidden
+              />
+            ) : isAuthenticated() ? (
               <>
                 {/* Notifications */}
                 <Link
@@ -81,7 +98,7 @@ export default function Header() {
                     className="flex items-center space-x-2 p-2 rounded-lg hover:bg-gray-100 transition-colors"
                   >
                     <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center text-white text-sm font-medium">
-                      {user?.email?.[0]?.toUpperCase() || 'U'}
+                      {user?.email?.[0]?.toUpperCase() || "U"}
                     </div>
                     <svg
                       className="w-4 h-4 text-gray-600"

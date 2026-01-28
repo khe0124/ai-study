@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import Script from 'next/script';
 import { authAPI } from '@/lib/api';
 import { setAuthToken, setAuthUser } from '@/lib/auth';
 import { initGoogleAuth, initKakaoAuth, loginWithKakao } from '@/lib/socialAuth';
@@ -9,6 +10,7 @@ import Link from 'next/link';
 
 export default function LoginPage() {
   const router = useRouter();
+  const kakaoKey = process.env.NEXT_PUBLIC_KAKAO_JAVASCRIPT_KEY ?? '';
   const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -51,10 +53,8 @@ export default function LoginPage() {
 
   // 소셜 로그인 SDK 초기화
   useEffect(() => {
-    const kakaoKey = process.env.NEXT_PUBLIC_KAKAO_JAVASCRIPT_KEY;
-
-    // Kakao SDK 초기화
-    if (kakaoKey && kakaoKey.trim() !== '') {
+    // Kakao SDK 초기화 (Script 태그는 이미 로그인 페이지에서 로드됨)
+    if (kakaoKey.trim() !== '') {
       initKakaoAuth(kakaoKey).catch((err) => {
         console.warn('Kakao SDK 초기화 실패:', err);
         // 초기화 실패는 에러로 표시하지 않음 (버튼 클릭 시 다시 시도)
@@ -62,7 +62,7 @@ export default function LoginPage() {
     } else {
       console.warn('Kakao JavaScript Key가 설정되지 않았습니다.');
     }
-  }, []);
+  }, [kakaoKey]);
 
   const handleSocialLogin = async (provider: 'google' | 'kakao') => {
     setError(null);
@@ -96,7 +96,6 @@ export default function LoginPage() {
           }
         });
       } else if (provider === 'kakao') {
-        const kakaoKey = process.env.NEXT_PUBLIC_KAKAO_JAVASCRIPT_KEY;
         if (!kakaoKey || kakaoKey.trim() === '') {
           setError('Kakao JavaScript Key가 설정되지 않았습니다. 환경 변수를 확인해주세요.');
           setLoading(false);
@@ -168,6 +167,13 @@ export default function LoginPage() {
 
   return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
+      {kakaoKey && kakaoKey.trim() !== '' && (
+        <Script
+          id="kakao-sdk-script"
+          src="https://developers.kakao.com/sdk/js/kakao.js"
+          strategy="afterInteractive"
+        />
+      )}
       <div className="max-w-md w-full space-y-8">
         <div>
           <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">

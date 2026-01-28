@@ -83,6 +83,32 @@ npm run test:db
 ✅ 연결 테스트 완료!
 ```
 
+## 🔴 연결이 안 될 때 (우선 확인)
+
+1. **Supabase 대시보드에서 URI 그대로 복사**
+   - [Supabase Dashboard](https://app.supabase.com/) → 프로젝트 선택
+   - **Project Settings** → **Database**
+   - **Connection string** 탭 → **URI** 선택
+   - **Session mode**(포트 5432) 또는 **Transaction mode**(포트 6543) 중 하나 복사
+   - `.env`의 `DATABASE_URL`을 이 값으로 **통째로 교체** (리전·호스트가 프로젝트와 정확히 일치해야 함)
+
+2. **프로젝트 일시중지 여부**
+   - 무료 플랜은 비활성 기간 후 일시중지됨
+   - 대시보드에서 프로젝트가 "Paused"면 **Restore** 후 다시 연결 시도
+
+3. **직접 연결(db.xxx)에서 ENOTFOUND가 나는 경우**
+   - `db.프로젝트ID.supabase.co` 대신 **Connection pooling** URI 사용
+   - 대시보드 Database → Connection string → **Session mode** 또는 **Transaction mode** URI 사용
+   - 형식 예: `postgresql://postgres.프로젝트ID:비밀번호@aws-0-리전.pooler.supabase.com:포트/postgres`
+   - 리전(예: `ap-northeast-2`, `us-east-1`)은 대시보드에 표시된 그대로 사용
+
+4. **로컬에서 연결 테스트**
+   ```bash
+   cd apps/backend
+   npm run test:db
+   ```
+   - 실패 시 터미널에 나온 에러 메시지(타임아웃, 인증 실패, ENOTFOUND 등)를 확인
+
 ## ❌ 일반적인 에러 및 해결 방법
 
 ### 에러 1: "DATABASE_URL 환경변수가 설정되지 않았습니다"
