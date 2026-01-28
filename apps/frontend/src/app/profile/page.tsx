@@ -27,7 +27,11 @@ export default function ProfilePage() {
 
         const response = await authAPI.getProfile(token);
         if (response.success && response.data) {
-          setUser(response.data.user);
+          // 백엔드 /api/auth/profile은 data에 user를 바로 넣음 (data.user 아님)
+          const data = response.data as unknown as
+            | UserProfile
+            | { user: UserProfile };
+          setUser("user" in data ? data.user : data);
         }
       } catch (err) {
         setError(
