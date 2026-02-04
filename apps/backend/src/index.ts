@@ -105,6 +105,7 @@ try {
 }
 
 const app = express();
+app.set("trust proxy", 1);
 const PORT = process.env.PORT || 3002;
 const isProduction = process.env.NODE_ENV === "production";
 
