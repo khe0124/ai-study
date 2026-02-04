@@ -5,19 +5,18 @@ WORKDIR /app
 
 # Install build tools for native modules (bcrypt)
 RUN apk add --no-cache python3 make g++
-RUN corepack enable && corepack prepare pnpm@9 --activate
 
-# Copy package files for better layer caching
-COPY package.json pnpm-lock.yaml ./
+# Copy package files
+COPY package.json ./
 
 # Install all dependencies (including devDependencies for TypeScript build)
-RUN pnpm install --no-frozen-lockfile
+RUN npm install
 
 # Copy source code
 COPY . .
 
 # Build TypeScript to JavaScript
-RUN pnpm run build
+RUN npm run build
 
 # Production dependencies stage
 FROM node:18-alpine AS deps
@@ -26,13 +25,12 @@ WORKDIR /app
 
 # Install build tools for native modules (bcrypt)
 RUN apk add --no-cache python3 make g++
-RUN corepack enable && corepack prepare pnpm@9 --activate
 
 # Copy package files
-COPY package.json pnpm-lock.yaml ./
+COPY package.json ./
 
 # Install only production dependencies
-RUN pnpm install --no-frozen-lockfile --prod
+RUN npm install --omit=dev
 
 # Production stage
 FROM node:18-alpine AS runner

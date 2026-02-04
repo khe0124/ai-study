@@ -3,21 +3,23 @@ FROM node:18-alpine AS builder
 
 WORKDIR /app
 
-# Install build dependencies only
+# Install build dependencies
 RUN apk add --no-cache libc6-compat
-RUN corepack enable && corepack prepare pnpm@9 --activate
 
-# Copy package files for better layer caching
-COPY package.json pnpm-lock.yaml ./
+# Copy package files
+COPY package.json ./
 
 # Install dependencies (including devDependencies for build)
-RUN pnpm install --no-frozen-lockfile
+RUN npm install
 
 # Copy source code
 COPY . .
 
+# Ensure public directory exists
+RUN mkdir -p public
+
 # Build Next.js application with standalone output
-RUN pnpm run build
+RUN npm run build
 
 # Production stage
 FROM node:18-alpine AS runner

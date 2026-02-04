@@ -231,7 +231,9 @@ print_step 6 $TOTAL_STEPS "Docker 이미지 빌드"
 echo ""
 
 cd "${INFRA_DIR}"
-sudo docker compose build 2>&1 | tail -5
+if ! sudo docker compose build; then
+    print_fail "Docker 이미지 빌드 실패. 위 로그를 확인하세요."
+fi
 
 print_ok
 
