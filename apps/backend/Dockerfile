@@ -18,6 +18,12 @@ COPY . .
 # Build TypeScript to JavaScript
 RUN npm run build
 
+# Compile knexfile to JS
+RUN npx tsc knexfile.ts --outDir dist-knex --esModuleInterop --module commonjs --resolveJsonModule --skipLibCheck
+
+# Compile migrations to JS (--rootDir ensures flat output without nested directories)
+RUN npx tsc --outDir dist-migrations --rootDir migrations --esModuleInterop --module commonjs --resolveJsonModule --skipLibCheck migrations/*.ts
+
 # Production dependencies stage
 FROM node:18-alpine AS deps
 
@@ -29,8 +35,8 @@ RUN apk add --no-cache python3 make g++
 # Copy package files
 COPY package.json ./
 
-# Install production dependencies + tsx for migrations
-RUN npm install --omit=dev && npm install tsx
+# Install only production dependencies
+RUN npm install --omit=dev
 
 # Production stage
 FROM node:18-alpine AS runner
@@ -52,8 +58,10 @@ COPY --from=deps --chown=nodejs:nodejs /app/node_modules ./node_modules
 # Copy built application from builder stage
 COPY --from=builder --chown=nodejs:nodejs /app/dist ./dist
 COPY --from=builder --chown=nodejs:nodejs /app/package.json ./
-COPY --from=builder --chown=nodejs:nodejs /app/migrations ./migrations
-COPY --from=builder --chown=nodejs:nodejs /app/knexfile.ts ./knexfile.ts
+
+# Copy compiled knexfile and migrations (JS, not TS)
+COPY --from=builder --chown=nodejs:nodejs /app/dist-knex/knexfile.js ./knexfile.js
+COPY --from=builder --chown=nodejs:nodejs /app/dist-migrations/ ./migrations/
 
 # Switch to non-root user
 USER nodejs
@@ -62,8 +70,8 @@ USER nodejs
 EXPOSE 3001
 
 # Health check
-HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=5 \
   CMD node -e "require('http').get('http://127.0.0.1:3001/health', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})"
 
-# Use exec form for better signal handling
-CMD ["sh", "-c", "node --require tsx/cjs node_modules/.bin/knex migrate:latest --knexfile knexfile.ts --env production && node dist/index.js"]
+# Run migrations then start server
+CMD ["sh", "-c", "npx knex migrate:latest --knexfile knexfile.js --env production && node dist/index.js"]

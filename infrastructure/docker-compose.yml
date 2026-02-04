@@ -59,17 +59,11 @@ services:
       - web-network
     restart: unless-stopped
     healthcheck:
-      test:
-        [
-          "CMD",
-          "node",
-          "-e",
-          "require('http').get('http://127.0.0.1:3000/api/health', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})",
-        ]
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://127.0.0.1:3000/"]
       interval: 30s
       timeout: 10s
-      retries: 3
-      start_period: 40s
+      retries: 5
+      start_period: 30s
     # Expose port only for internal network (not to host)
     expose:
       - "3000"
@@ -103,16 +97,10 @@ services:
       - data-network
     restart: unless-stopped
     healthcheck:
-      test:
-        [
-          "CMD",
-          "node",
-          "-e",
-          "require('http').get('http://127.0.0.1:3001/health', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})",
-        ]
+      test: ["CMD", "node", "-e", "require('http').get('http://127.0.0.1:3001/health',(r)=>{process.exit(r.statusCode===200?0:1)})"]
       interval: 30s
       timeout: 10s
-      retries: 3
+      retries: 5
       start_period: 30s
     # Expose port only for internal network (not to host)
     expose:
