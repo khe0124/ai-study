@@ -5,18 +5,19 @@ WORKDIR /app
 
 # Install build dependencies only
 RUN apk add --no-cache libc6-compat
+RUN corepack enable && corepack prepare pnpm@latest --activate
 
 # Copy package files for better layer caching
-COPY package*.json ./
+COPY package.json pnpm-lock.yaml ./
 
 # Install dependencies (including devDependencies for build)
-RUN npm ci --include=dev
+RUN pnpm install --frozen-lockfile
 
 # Copy source code
 COPY . .
 
 # Build Next.js application with standalone output
-RUN npm run build
+RUN pnpm run build
 
 # Production stage
 FROM node:18-alpine AS runner

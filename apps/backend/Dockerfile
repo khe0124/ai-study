@@ -5,18 +5,19 @@ WORKDIR /app
 
 # Install build tools for native modules (bcrypt)
 RUN apk add --no-cache python3 make g++
+RUN corepack enable && corepack prepare pnpm@latest --activate
 
 # Copy package files for better layer caching
-COPY package*.json ./
+COPY package.json pnpm-lock.yaml ./
 
 # Install all dependencies (including devDependencies for TypeScript build)
-RUN npm ci --include=dev
+RUN pnpm install --frozen-lockfile
 
 # Copy source code
 COPY . .
 
 # Build TypeScript to JavaScript
-RUN npm run build
+RUN pnpm run build
 
 # Production dependencies stage
 FROM node:18-alpine AS deps
@@ -25,13 +26,13 @@ WORKDIR /app
 
 # Install build tools for native modules (bcrypt)
 RUN apk add --no-cache python3 make g++
+RUN corepack enable && corepack prepare pnpm@latest --activate
 
 # Copy package files
-COPY package*.json ./
+COPY package.json pnpm-lock.yaml ./
 
 # Install only production dependencies
-RUN npm ci --only=production && \
-    npm cache clean --force
+RUN pnpm install --frozen-lockfile --prod
 
 # Production stage
 FROM node:18-alpine AS runner
@@ -49,7 +50,7 @@ COPY --from=deps --chown=nodejs:nodejs /app/node_modules ./node_modules
 
 # Copy built application from builder stage
 COPY --from=builder --chown=nodejs:nodejs /app/dist ./dist
-COPY --from=builder --chown=nodejs:nodejs /app/package*.json ./
+COPY --from=builder --chown=nodejs:nodejs /app/package.json ./
 
 # Switch to non-root user
 USER nodejs
