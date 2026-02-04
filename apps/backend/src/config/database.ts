@@ -20,11 +20,12 @@ export function getPool(): Pool {
         : databaseUrl;
 
     // 환경 변수에서 설정값 읽기 (기본값 제공)
+    // Docker 내부 PostgreSQL은 SSL 불필요, Supabase 등 외부 DB는 SSL 필요
+    const useSSL = databaseUrl.includes('supabase.com') || process.env.DB_SSL === 'true';
+
     const poolConfig: PoolConfig & { family?: number } = {
       connectionString,
-      ssl: {
-        rejectUnauthorized: false, // Supabase SSL
-      },
+      ssl: useSSL ? { rejectUnauthorized: false } : false,
       connectionTimeoutMillis: parseInt(
         process.env.DB_CONNECTION_TIMEOUT || '15000',
         10,
