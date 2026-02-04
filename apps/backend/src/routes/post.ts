@@ -280,7 +280,7 @@ router.post(
 
 /**
  * @swagger
- * /api/posts/{postId}/comments/{id}:
+ * /api/posts/{postId}/comments/{commentId}:
  *   put:
  *     summary: 댓글 수정
  *     tags: [Comments]
@@ -293,7 +293,7 @@ router.post(
  *         schema:
  *           type: string
  *       - in: path
- *         name: id
+ *         name: commentId
  *         required: true
  *         schema:
  *           type: string
@@ -318,7 +318,7 @@ router.post(
  *         description: 댓글을 찾을 수 없음
  */
 router.put(
-  "/:postId/comments/:id",
+  "/:postId/comments/:commentId",
   authenticate,
   validateUpdateComment,
   handleValidationErrors,
@@ -327,7 +327,7 @@ router.put(
 
 /**
  * @swagger
- * /api/posts/{postId}/comments/{id}:
+ * /api/posts/{postId}/comments/{commentId}:
  *   delete:
  *     summary: 댓글 삭제
  *     tags: [Comments]
@@ -340,7 +340,7 @@ router.put(
  *         schema:
  *           type: string
  *       - in: path
- *         name: id
+ *         name: commentId
  *         required: true
  *         schema:
  *           type: string
@@ -353,7 +353,7 @@ router.put(
  *         description: 댓글을 찾을 수 없음
  */
 router.delete(
-  "/:postId/comments/:id",
+  "/:postId/comments/:commentId",
   authenticate,
   PostController.deleteComment
 );

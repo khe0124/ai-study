@@ -208,8 +208,13 @@ app.use("/api/auth", authRoutes);
 // Post routes
 app.use("/api/posts", postRoutes);
 
-// 정적 파일 서빙 (업로드된 파일)
-app.use("/uploads", express.static(path.join(process.cwd(), "uploads")));
+// 정적 파일 서빙 (업로드된 파일) - 보안 헤더 추가
+app.use("/uploads", (req: Request, res: Response, next: NextFunction) => {
+  res.setHeader("X-Content-Type-Options", "nosniff");
+  res.setHeader("Content-Disposition", "attachment");
+  res.setHeader("Cache-Control", "private, no-cache");
+  next();
+}, express.static(path.join(process.cwd(), "uploads")));
 
 // 404 handler
 app.use((req: Request, res: Response) => {

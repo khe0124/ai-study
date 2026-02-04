@@ -1,10 +1,11 @@
+import { randomUUID } from 'crypto';
 import { User } from '../types/auth';
 import { getPool } from '../config/database';
 
 export class UserModel {
   static async create(userData: Omit<User, 'id' | 'createdAt' | 'updatedAt'>): Promise<User> {
     const pool = getPool();
-    const id = `user_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    const id = `user_${randomUUID()}`;
     const now = new Date();
     
     try {

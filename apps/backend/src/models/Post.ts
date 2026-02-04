@@ -1,3 +1,4 @@
+import { randomUUID } from "crypto";
 import { Post, Comment } from "../types/post";
 import { CommentModel } from "./Comment";
 import { getPool } from "../config/database";
@@ -7,7 +8,7 @@ export class PostModel {
     postData: Omit<Post, "id" | "createdAt" | "updatedAt" | "comments">
   ): Promise<Post> {
     const pool = getPool();
-    const id = `post_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    const id = `post_${randomUUID()}`;
     const now = new Date();
 
     // attachments 배열을 PostgreSQL 배열로 변환

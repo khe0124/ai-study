@@ -66,8 +66,18 @@ const fileFilter = (
       cb(new Error("썸네일은 이미지 파일만 업로드 가능합니다."));
     }
   } else {
-    // 첨부파일은 모든 파일 허용 (필요시 제한 가능)
-    cb(null, true);
+    // 첨부파일: 위험한 파일 확장자 차단
+    const dangerousExtensions = [
+      '.html', '.htm', '.svg', '.js', '.jsx', '.ts', '.tsx',
+      '.exe', '.bat', '.cmd', '.sh', '.php', '.asp', '.aspx',
+      '.jsp', '.cgi', '.pl', '.py', '.rb', '.mjs', '.wasm',
+    ];
+    const ext = path.extname(file.originalname).toLowerCase();
+    if (dangerousExtensions.includes(ext)) {
+      cb(new Error(`보안상 ${ext} 파일은 업로드할 수 없습니다.`));
+    } else {
+      cb(null, true);
+    }
   }
 };
 

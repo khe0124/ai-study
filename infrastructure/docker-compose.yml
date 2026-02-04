@@ -79,16 +79,19 @@ services:
       context: ../apps/backend
       dockerfile: Dockerfile
     container_name: web-backend
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
     environment:
       - NODE_ENV=${NODE_ENV:-production}
       - PORT=${BACKEND_PORT:-3001}
       - FRONTEND_URL=${FRONTEND_URL:-http://frontend:3000}
-      # Database configuration (uncomment when adding DB)
-      # - DATABASE_URL=${DATABASE_URL}
-      # - REDIS_URL=${REDIS_URL:-redis://redis:6379}
-      # Firebase/Supabase configuration
-      # - FIREBASE_ADMIN_KEY=${FIREBASE_ADMIN_KEY}
-      # - SUPABASE_SERVICE_KEY=${SUPABASE_SERVICE_KEY}
+      - DATABASE_URL=${DATABASE_URL}
+      - REDIS_URL=${REDIS_URL:-redis://redis:6379}
+      - JWT_SECRET=${JWT_SECRET}
+      - JWT_EXPIRES_IN=${JWT_EXPIRES_IN:-7d}
     # Production: Remove volumes for immutable deployment
     # Development: Uncomment volumes for hot-reload
     # volumes:
@@ -96,8 +99,7 @@ services:
     #   - /app/node_modules
     networks:
       - web-network
-      # Uncomment when adding Redis/DB
-      # - data-network
+      - data-network
     restart: unless-stopped
     healthcheck:
       test:
@@ -115,23 +117,45 @@ services:
     expose:
       - "3001"
 
-  # Redis (Optional - Uncomment when needed)
+  # PostgreSQL Database
+  postgres:
+    image: postgres:16-alpine
+    container_name: web-postgres
+    environment:
+      - POSTGRES_USER=${POSTGRES_USER:-postgres}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_DB=${POSTGRES_DB:-ai_study}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    networks:
+      - data-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres}"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    expose:
+      - "5432"
+
+  # Redis
   redis:
     image: redis:7-alpine
     container_name: redis
-    command: redis-server --appendonly yes
+    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD:-changeme}
     volumes:
       - redis-data:/data
     networks:
       - data-network
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD:-changeme}", "ping"]
       interval: 30s
       timeout: 10s
       retries: 3
-    ports:
-      - "6379:6379"
+    expose:
+      - "6379"
 
 networks:
   # Web application network (Frontend, Backend, Nginx)
@@ -151,7 +175,5 @@ networks:
 volumes:
   redis-data:
     driver: local
-  # postgres-data:
-  #   driver: local
-  # mysql-data:
-  #   driver: local
+  postgres-data:
+    driver: local

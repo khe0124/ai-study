@@ -55,7 +55,7 @@ export default function Sidebar({ isOpen = true, onClose }: SidebarProps) {
   return (
     <>
       {/* Mobile Overlay */}
-      {!isOpen && onClose && (
+      {isOpen && onClose && (
         <div
           className="fixed inset-0 bg-black bg-opacity-50 z-40 lg:hidden"
           onClick={onClose}

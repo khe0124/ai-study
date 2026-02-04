@@ -1,3 +1,4 @@
+import { randomUUID } from "crypto";
 import { Comment } from "../types/post";
 import { getPool } from "../config/database";
 
@@ -6,9 +7,7 @@ export class CommentModel {
     commentData: Omit<Comment, "id" | "createdAt" | "updatedAt">
   ): Promise<Comment> {
     const pool = getPool();
-    const id = `comment_${Date.now()}_${Math.random()
-      .toString(36)
-      .substr(2, 9)}`;
+    const id = `comment_${randomUUID()}`;
     const now = new Date();
 
     const result = await pool.query(

@@ -1,0 +1,299 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# ===================================
+#   AI-Study EC2 배포 스크립트
+# ===================================
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+INFRA_DIR="${SCRIPT_DIR}/infrastructure"
+
+# 색상 정의
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+NC='\033[0m' # No Color
+
+print_header() {
+    echo ""
+    echo -e "${BLUE}===================================${NC}"
+    echo -e "${BLUE}  AI-Study EC2 배포 스크립트${NC}"
+    echo -e "${BLUE}===================================${NC}"
+    echo ""
+}
+
+print_step() {
+    local step=$1
+    local total=$2
+    local msg=$3
+    echo -ne "${YELLOW}[${step}/${total}] ${msg}...${NC} "
+}
+
+print_ok() {
+    echo -e "${GREEN}✓${NC}"
+}
+
+print_fail() {
+    echo -e "${RED}✗${NC}"
+    echo -e "${RED}오류: $1${NC}"
+    exit 1
+}
+
+print_header
+
+TOTAL_STEPS=8
+
+# -----------------------------------------------
+# [1/8] 시스템 업데이트
+# -----------------------------------------------
+print_step 1 $TOTAL_STEPS "시스템 업데이트"
+
+sudo apt-get update -y > /dev/null 2>&1
+sudo apt-get upgrade -y > /dev/null 2>&1
+sudo apt-get install -y curl wget git ca-certificates gnupg lsb-release > /dev/null 2>&1
+
+print_ok
+
+# -----------------------------------------------
+# [2/8] Docker 설치
+# -----------------------------------------------
+print_step 2 $TOTAL_STEPS "Docker 설치"
+
+if command -v docker &> /dev/null; then
+    echo -ne "(이미 설치됨) "
+else
+    # Docker GPG 키 및 저장소 추가
+    sudo install -m 0755 -d /etc/apt/keyrings
+    curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg --yes
+    sudo chmod a+r /etc/apt/keyrings/docker.gpg
+
+    echo \
+      "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu \
+      $(. /etc/os-release && echo "$VERSION_CODENAME") stable" | \
+      sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+
+    sudo apt-get update -y > /dev/null 2>&1
+    sudo apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin > /dev/null 2>&1
+
+    # 현재 사용자를 docker 그룹에 추가
+    sudo usermod -aG docker "$USER" 2>/dev/null || true
+fi
+
+# Docker 서비스 시작
+sudo systemctl enable docker > /dev/null 2>&1
+sudo systemctl start docker > /dev/null 2>&1
+
+print_ok
+
+# -----------------------------------------------
+# [3/8] 방화벽 설정
+# -----------------------------------------------
+print_step 3 $TOTAL_STEPS "방화벽 설정"
+
+sudo ufw allow 22/tcp > /dev/null 2>&1 || true
+sudo ufw allow 80/tcp > /dev/null 2>&1 || true
+sudo ufw allow 443/tcp > /dev/null 2>&1 || true
+echo "y" | sudo ufw enable > /dev/null 2>&1 || true
+
+print_ok
+
+# -----------------------------------------------
+# [4/8] 환경변수 설정 (대화형)
+# -----------------------------------------------
+print_step 4 $TOTAL_STEPS "환경변수 설정"
+echo ""
+
+read_input() {
+    local prompt=$1
+    local default=$2
+    local var_name=$3
+    local is_secret=${4:-false}
+
+    if [ -n "$default" ]; then
+        echo -ne "  > ${prompt} [${default}]: "
+    else
+        echo -ne "  > ${prompt}: "
+    fi
+
+    if [ "$is_secret" = "true" ]; then
+        read -r -s value
+        echo ""
+    else
+        read -r value
+    fi
+
+    if [ -z "$value" ]; then
+        value="$default"
+    fi
+
+    eval "$var_name=\"$value\""
+}
+
+# PostgreSQL 설정
+read_input "POSTGRES_USER" "postgres" "POSTGRES_USER"
+read_input "POSTGRES_PASSWORD (Enter로 자동 생성)" "" "POSTGRES_PASSWORD"
+if [ -z "$POSTGRES_PASSWORD" ]; then
+    POSTGRES_PASSWORD=$(openssl rand -base64 32 | tr -d '/+=' | head -c 32)
+    echo -e "  ${GREEN}POSTGRES_PASSWORD 자동 생성됨${NC}"
+fi
+read_input "POSTGRES_DB" "ai_study" "POSTGRES_DB"
+
+# JWT_SECRET
+read_input "JWT_SECRET (Enter로 자동 생성)" "" "JWT_SECRET"
+if [ -z "$JWT_SECRET" ]; then
+    JWT_SECRET=$(openssl rand -base64 48)
+    echo -e "  ${GREEN}JWT_SECRET 자동 생성됨${NC}"
+fi
+
+# JWT_EXPIRES_IN
+read_input "JWT_EXPIRES_IN" "7d" "JWT_EXPIRES_IN"
+
+# REDIS_PASSWORD
+read_input "REDIS_PASSWORD (Enter로 자동 생성)" "" "REDIS_PASSWORD"
+if [ -z "$REDIS_PASSWORD" ]; then
+    REDIS_PASSWORD=$(openssl rand -base64 32)
+    echo -e "  ${GREEN}REDIS_PASSWORD 자동 생성됨${NC}"
+fi
+
+# DOMAIN
+read_input "도메인 (없으면 Enter, IP로 접속)" "" "DOMAIN"
+
+# FRONTEND_URL
+read_input "FRONTEND_URL" "http://frontend:3000" "FRONTEND_URL"
+
+# 카카오 OAuth
+read_input "NEXT_PUBLIC_KAKAO_JAVASCRIPT_KEY (선택)" "" "NEXT_PUBLIC_KAKAO_JAVASCRIPT_KEY"
+
+# 구글 OAuth
+read_input "NEXT_PUBLIC_GOOGLE_CLIENT_ID (선택)" "" "NEXT_PUBLIC_GOOGLE_CLIENT_ID"
+
+echo ""
+
+# -----------------------------------------------
+# [5/8] 환경 파일 생성
+# -----------------------------------------------
+print_step 5 $TOTAL_STEPS "환경 파일 생성"
+
+REDIS_URL="redis://:${REDIS_PASSWORD}@redis:6379"
+DATABASE_URL="postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}"
+
+cat > "${INFRA_DIR}/.env" <<EOF
+# Auto-generated by deploy.sh
+NODE_ENV=production
+
+# PostgreSQL
+POSTGRES_USER=${POSTGRES_USER}
+POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+POSTGRES_DB=${POSTGRES_DB}
+
+# Database
+DATABASE_URL=${DATABASE_URL}
+
+# JWT
+JWT_SECRET=${JWT_SECRET}
+JWT_EXPIRES_IN=${JWT_EXPIRES_IN}
+
+# Redis
+REDIS_URL=${REDIS_URL}
+REDIS_PASSWORD=${REDIS_PASSWORD}
+
+# Frontend
+FRONTEND_URL=${FRONTEND_URL}
+
+# Domain (empty = use IP)
+DOMAIN=${DOMAIN}
+
+# Nginx
+NGINX_PORT=80
+NGINX_SSL_PORT=443
+
+# OAuth (optional)
+NEXT_PUBLIC_KAKAO_JAVASCRIPT_KEY=${NEXT_PUBLIC_KAKAO_JAVASCRIPT_KEY}
+NEXT_PUBLIC_GOOGLE_CLIENT_ID=${NEXT_PUBLIC_GOOGLE_CLIENT_ID}
+EOF
+
+# 디렉토리 생성
+mkdir -p "${INFRA_DIR}/nginx/logs"
+mkdir -p "${INFRA_DIR}/nginx/ssl"
+
+# 도메인이 설정된 경우 nginx server_name 치환
+if [ -n "$DOMAIN" ]; then
+    sed -i "s/server_name localhost;/server_name ${DOMAIN};/g" "${INFRA_DIR}/nginx/conf.d/default.conf"
+fi
+
+print_ok
+
+# -----------------------------------------------
+# [6/8] Docker 이미지 빌드
+# -----------------------------------------------
+print_step 6 $TOTAL_STEPS "Docker 이미지 빌드"
+echo ""
+
+cd "${INFRA_DIR}"
+sudo docker compose build 2>&1 | tail -5
+
+print_ok
+
+# -----------------------------------------------
+# [7/8] 서비스 시작
+# -----------------------------------------------
+print_step 7 $TOTAL_STEPS "서비스 시작"
+
+sudo docker compose up -d 2>&1 | tail -5
+
+print_ok
+
+# -----------------------------------------------
+# [8/8] 헬스체크 확인
+# -----------------------------------------------
+print_step 8 $TOTAL_STEPS "헬스체크 확인"
+
+# 서비스가 준비될 때까지 대기
+MAX_RETRIES=30
+RETRY_COUNT=0
+while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
+    if curl -sf http://localhost/health > /dev/null 2>&1; then
+        break
+    fi
+    RETRY_COUNT=$((RETRY_COUNT + 1))
+    sleep 5
+done
+
+if [ $RETRY_COUNT -ge $MAX_RETRIES ]; then
+    echo ""
+    echo -e "${YELLOW}  헬스체크 타임아웃. 서비스가 아직 시작 중일 수 있습니다.${NC}"
+    echo -e "${YELLOW}  수동 확인: curl http://localhost/health${NC}"
+    echo -e "${YELLOW}  로그 확인: cd ${INFRA_DIR} && sudo docker compose logs${NC}"
+else
+    print_ok
+fi
+
+# -----------------------------------------------
+# 완료 메시지
+# -----------------------------------------------
+echo ""
+echo -e "${GREEN}===================================${NC}"
+echo -e "${GREEN}  배포 완료!${NC}"
+echo -e "${GREEN}===================================${NC}"
+
+# 서버 IP 가져오기
+SERVER_IP=$(curl -sf http://checkip.amazonaws.com 2>/dev/null || hostname -I | awk '{print $1}')
+
+if [ -n "$DOMAIN" ]; then
+    echo -e "  URL: http://${DOMAIN}"
+else
+    echo -e "  URL: http://${SERVER_IP}"
+fi
+
+echo ""
+echo -e "  서비스 상태: cd ${INFRA_DIR} && sudo docker compose ps"
+echo -e "  로그 확인:   cd ${INFRA_DIR} && sudo docker compose logs -f"
+
+if [ -n "$DOMAIN" ]; then
+    echo ""
+    echo -e "${YELLOW}  SSL 설정을 위해 다음을 실행하세요:${NC}"
+    echo -e "  ${BLUE}./setup-ssl.sh${NC}"
+fi
+
+echo ""
