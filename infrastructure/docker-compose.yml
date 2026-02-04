@@ -41,13 +41,13 @@ services:
     build:
       context: ../apps/frontend
       dockerfile: Dockerfile
+      args:
+        - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL:-http://backend:3001}
+        - NEXT_PUBLIC_KAKAO_JAVASCRIPT_KEY=${NEXT_PUBLIC_KAKAO_JAVASCRIPT_KEY}
+        - NEXT_PUBLIC_GOOGLE_CLIENT_ID=${NEXT_PUBLIC_GOOGLE_CLIENT_ID}
     container_name: web-frontend
     environment:
       - NODE_ENV=${NODE_ENV:-production}
-      - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL:-http://backend:3001}
-      # Add more environment variables as needed
-      # - NEXT_PUBLIC_FIREBASE_API_KEY=${NEXT_PUBLIC_FIREBASE_API_KEY}
-      # - NEXT_PUBLIC_SUPABASE_URL=${NEXT_PUBLIC_SUPABASE_URL}
     # Production: Remove volumes for immutable deployment
     # Development: Uncomment volumes for hot-reload
     # volumes:
