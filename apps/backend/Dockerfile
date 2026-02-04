@@ -3,6 +3,9 @@ FROM node:18-alpine AS builder
 
 WORKDIR /app
 
+# Install build tools for native modules (bcrypt)
+RUN apk add --no-cache python3 make g++
+
 # Copy package files for better layer caching
 COPY package*.json ./
 
@@ -19,6 +22,9 @@ RUN npm run build
 FROM node:18-alpine AS deps
 
 WORKDIR /app
+
+# Install build tools for native modules (bcrypt)
+RUN apk add --no-cache python3 make g++
 
 # Copy package files
 COPY package*.json ./
