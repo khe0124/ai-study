@@ -29,8 +29,8 @@ RUN apk add --no-cache python3 make g++
 # Copy package files
 COPY package.json ./
 
-# Install only production dependencies
-RUN npm install --omit=dev
+# Install production dependencies + tsx for migrations
+RUN npm install --omit=dev && npm install tsx
 
 # Production stage
 FROM node:18-alpine AS runner
@@ -52,6 +52,8 @@ COPY --from=deps --chown=nodejs:nodejs /app/node_modules ./node_modules
 # Copy built application from builder stage
 COPY --from=builder --chown=nodejs:nodejs /app/dist ./dist
 COPY --from=builder --chown=nodejs:nodejs /app/package.json ./
+COPY --from=builder --chown=nodejs:nodejs /app/migrations ./migrations
+COPY --from=builder --chown=nodejs:nodejs /app/knexfile.ts ./knexfile.ts
 
 # Switch to non-root user
 USER nodejs
@@ -64,4 +66,4 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
   CMD node -e "require('http').get('http://127.0.0.1:3001/health', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})"
 
 # Use exec form for better signal handling
-CMD ["node", "dist/index.js"]
+CMD ["sh", "-c", "npx knex migrate:latest --knexfile knexfile.ts --env production && node dist/index.js"]

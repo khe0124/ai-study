@@ -45,7 +45,12 @@ const config: { [key: string]: Knex.Config } = {
 
   production: {
     client: "postgresql",
-    connection: process.env.DATABASE_URL,
+    connection: {
+      connectionString: process.env.DATABASE_URL,
+      ssl: process.env.DATABASE_URL?.includes('supabase.com') || process.env.DB_SSL === 'true'
+        ? { rejectUnauthorized: false }
+        : false,
+    },
     pool: {
       min: 2,
       max: 10,
@@ -53,9 +58,6 @@ const config: { [key: string]: Knex.Config } = {
     migrations: {
       tableName: "knex_migrations",
       directory: "./migrations",
-    },
-    ssl: {
-      rejectUnauthorized: false, // Supabase SSL
     },
   },
 };
